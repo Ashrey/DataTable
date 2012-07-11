@@ -82,6 +82,13 @@ class DataTable {
      * @var string
      */
     protected $_primary_key = 'id';
+    
+    
+    /**
+     * Titulo de la tabla
+     * @var String
+     */
+    protected $_caption = '';
 
     /**
      * Constructor de la Clase
@@ -118,6 +125,8 @@ class DataTable {
         }
         $this->_cabeceras = array_merge($this->_cabeceras, $params);
     }
+    
+    
 
     /**
      * Establece|añade los campos del modelo a mostrar en la tabla
@@ -172,9 +181,13 @@ class DataTable {
             $this->_getTableSchema($model);
         }
         $table = "<table $attrs>";
+        //Titulo de la tabla
+         if(!empty($this->_caption))
+            $table .= "<caption>{$this->_caption}</caption>";
 //      head de la tabla
         $table .= '<thead>';
-        $table .= '<tr style="text-align:center;font-weight:bold;">';
+       
+        $table .= '<tr>';
         foreach ($this->_cabeceras as $e) {
             $table .= "<th>$e</th>";
         }
@@ -182,13 +195,13 @@ class DataTable {
         $table .= '</thead>';
 //       foot de la tabla
         if ($this->_paginator && $this->_type_paginator !== FALSE) {
-            $table .= '   <tfoot><tr><th colspan="100">';
+            $table .= '   <tfoot><tr><td td colspan="100">';
             $table .= $this->_paginator();
-            $table .= '</th></tr></tfoot>';
+            $table .= '</td></tr></tfoot>';
         } else {
-            $table .= '   <tfoot><tr><th colspan="100">';
-            $table .= '<span style="float:right;margin-right:20px;"><b>Total registros: ' . count($model) . '</b></span>';
-            $table .= '</th></tr></tfoot>';
+            $table .= '   <tfoot><tr><td colspan="100">';
+            $table .= '<span style="float:right;margin-right:20px;"><b>Total: ' . count($model) . '</b></span>';
+            $table .= '</td></tr></tfoot>';
         }
 //      body de la tabla
         $table .= '<tbody>';
@@ -196,7 +209,18 @@ class DataTable {
             foreach ($model as $model) {
                 $table .= '<tr>';
                 foreach ($this->_campos as $field) {
-                    if (method_exists($model, $field['field'])) { //si es un metodo lo llamamos
+                    //permite llamar a las claves foraneas
+                    if(isset($field['field'][2]) && strripos($field['field'], '_id', -3)){
+                        $method = 'get'. substr($field['field'],0, -3);
+                        $t = call_user_func(array($model, $method));
+                        if (is_object($t)) {
+                            $c = $t->non_primary[0];
+                            $value = h($t->$c);
+                        } else {
+                            $value = '';
+                        }
+                    }elseif (method_exists($model, $field['field'])) { //si es un metodo lo llamamos
+                        
                         $value = h($model->$field['field']());
                     } else {
                         $value = h($model->$field['field']);
@@ -324,6 +348,7 @@ class DataTable {
         $confirm = explode('|', $confirm);
         isset($action[1]) || $action[1] = $action[0];
         isset($text[1]) || $text[1] = $text[0];
+        isset($confirm[1]) || $confirm[1] = $confirm[0];
         $this->addFields(array(
             'field' => $this->_primary_key,
             'boolean_field' => $boolean_field,
@@ -379,6 +404,37 @@ class DataTable {
     public function url($url) {
         $this->_url = "$url/";
     }
+    
+    /**
+     * Establece el titulo de la tabla
+     * 
+     * Ejemplo
+     * <code>
+     *     $obj->setCaption('Ganancias de Marzo');
+     * </code>
+     * @param type $txt 
+     */
+    public function setCaption($txt){
+        $this->_caption = $txt;
+    }
+    
+    /**
+     * Permite agregar automaticamente cabeceras y campos
+     * Ejemplo
+     * <code>
+     *     $obj->addFieldAuto('id', 'usuario');
+     * </code>
+     * @param Array $data
+     */
+    public function addFieldAuto($data){
+        if(!current($this->_model))return;
+        foreach($data as $field){
+            $alias = current($this->_model)->alias;
+            $this->addFields($field);
+            $this->addHeaders($alias[$field]);
+        }
+        
+    }
 
     /**
      * Establece el paginador de kumbia a utilizar en la tabla,
@@ -412,7 +468,7 @@ class DataTable {
                     $html .= Html::link($this->_url . $this->_paginator->next, 'Siguiente', 'title="Ir a la p&aacute;g. siguiente"');
                 }
             }
-            $html .= '<span style="float:right;margin-right:20px;"><b>Total registros: ' . $this->_paginator->count . '</b></span></div>';
+            $html .= '<span style="float:right;margin-right:20px;"><b>Total: ' . $this->_paginator->count . '</b></span></div>';
             return $html;
         } else {
             $parametros = array(
@@ -445,5 +501,6 @@ class DataTable {
             $this->_cabeceras = array_merge($this->_cabeceras, $temp_cabeceras);
         }
     }
-
+    
+   
 }
